@@ -1,17 +1,5 @@
-from pymongo import MongoClient
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-
-
-
-app = Flask(__name__)
-CORS(app)
-
-client = MongoClient("mongodb+srv://lemillions:123456abc@cluster0.esrnj.mongodb.net/Japagerencias")
-db = client['Japagerencias']
 usuarios = db['usuarios']
 produto = db['produtos']
-
     
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -66,20 +54,27 @@ def novoProduto():
   else:
     return "oi"
 
-@app.route('/comprar', methods=['POST'])
+@app.route('/comprar', methods=['GET', 'POST'])
 def realizarCompra():
   if(request.method == "POST"):
     historico = []
     historico = usuarios.find_one({"usuario":request.json[1]})['historico']
-    print(request.json[0][0])
     usuario = {"usuario":request.json[1]}
-    print(historico)
-    historico.append(request.json[0][0])
+    historico.append(request.json[0])
     usuarios.update_one(usuario, { "$set":{"historico":historico}})
+    for produtoComprado in request.json[0]["produtos"]:
+      queryCompra = {"nome":produtoComprado['nome']}
+      quantidadeDoProdutoAtual = int(produto.find_one(queryCompra)['quantidade'])
+      quantidadeComprada = int(produtoComprado['quantidade'])
+      novaQuantidade = str(quantidadeDoProdutoAtual - quantidadeComprada)
+      produto.update_one(queryCompra,{"$set":{"quantidade":novaQuantidade}})
     return str(request)
   else:
     return "oi"
-  
 
-  
+@app.route('/deletar', methods=['POST'])
+def deletarProduto():
+  query = {"nome":request.json["nome"]}
+  produto.delete_one(query)
+  return "apagado"
 app.run('0.0.0.0')
